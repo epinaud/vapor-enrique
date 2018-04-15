@@ -4,17 +4,33 @@ import Fluent
 struct AcronymsController: RouteCollection {
     func boot(router: Router) throws {
         let acronymsRoutes = router.grouped("api", "acronyms")
-//        router.get("api", "acronyms", use: getAllHandler)
+
         acronymsRoutes.get(use: getAllHandler)
-        acronymsRoutes.get(Acronym.parameter, use: getHandler)
-        acronymsRoutes.post(Acronym.self, use: createHandler)
-        acronymsRoutes.put(Acronym.parameter, use: updateHandler)
-        acronymsRoutes.delete(Acronym.parameter, use: deleteHandler)
-        acronymsRoutes.get("search", use: searchHandler)
-        acronymsRoutes.get("first", use: firstHandler)
-        acronymsRoutes.get("sorted", use: sortedHandler)
+        acronymsRoutes.get(Acronym.parameter,
+                           use: getHandler)
+        acronymsRoutes.post(Acronym.self,
+                            use: createHandler)
+        acronymsRoutes.put(Acronym.parameter,
+                           use: updateHandler)
+        acronymsRoutes.delete(Acronym.parameter,
+                              use: deleteHandler)
+        acronymsRoutes.get("search",
+                           use: searchHandler)
+        acronymsRoutes.get("first",
+                           use: firstHandler)
+        acronymsRoutes.get("sorted",
+                           use: sortedHandler)
 //        acronymsRoutes.get("filter", use: filterHandler)
-        acronymsRoutes.get(Acronym.parameter, "user", use: getUserHandler)
+        acronymsRoutes.get(Acronym.parameter,
+                           "user",
+                           use: getUserHandler)
+        acronymsRoutes.post(Acronym.parameter,
+                            "categories",
+                            Category.parameter,
+                            use: addCategoriesHandler)
+        acronymsRoutes.get(Acronym.parameter,
+                           "categories",
+                           use: getCategoriesHandler)
     }
     
     func getAllHandler(_ req: Request) throws -> Future<[Acronym]> {
@@ -84,6 +100,22 @@ struct AcronymsController: RouteCollection {
         return try req.parameter(Acronym.self)
             .flatMap(to: User.self, { (acronym) -> Future<User> in
                 try acronym.user.get(on: req)
+            })
+    }
+    
+    func addCategoriesHandler(_ req: Request) throws -> Future<HTTPStatus> {
+        return try flatMap(to: HTTPStatus.self,
+                           req.parameter(Acronym.self),
+                           req.parameter(Category.self), { (acronym, category) -> EventLoopFuture<HTTPStatus> in
+                            let pivot = try AcronymCategoryPivot(acronymID: acronym.requireID(), categoryID: category.requireID())
+                            return pivot.save(on: req).transform(to: HTTPStatus.created)
+        })
+    }
+    
+    func getCategoriesHandler(_ req: Request) throws -> Future<[Category]> {
+        return try req.parameter(Acronym.self)
+            .flatMap(to: [Category].self, { (acronym) -> Future<[Category]> in
+                try acronym.categories.query(on: req).all()
             })
     }
 }
