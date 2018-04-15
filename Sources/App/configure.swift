@@ -43,8 +43,13 @@ public func configure(
     databases.add(database: database, as: .mysql)
     services.register(databases)
 
+    var commandConfig = CommandConfig.default()
+    commandConfig.use(RevertCommand.self, as: "revert")
+    services.register(commandConfig)
+    
     /// Configure migrations
     var migrations = MigrationConfig()
+    migrations.add(model: User.self, database: .mysql)
     migrations.add(model: Acronym.self, database: .mysql)
     services.register(migrations)
 
